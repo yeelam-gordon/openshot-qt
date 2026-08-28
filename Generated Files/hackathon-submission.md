@@ -64,12 +64,17 @@ library, and every packaged EXE/DLL/PYD must use one compatible Arm64 ABI.
 - Application/packaging: https://github.com/OpenShot/openshot-qt/pull/6094
 
 The changes are separated in dependency order and preserve existing x64/x86
-lanes. Copilot Code Review is being run to convergence on mirror PRs in the
+lanes. Copilot Code Review converged on current-head mirror PRs in all three
 forks, with every finding fixed or explicitly dispositioned.
 
 **Evidence today**
 
 - Shared validator unit tests pass independently in all three repositories.
+- Copilot review converged with zero open threads on all three current PR
+  heads; upstream PR heads match the reviewed SHAs.
+- The GitHub-hosted Windows Arm64 audio presubmit completed successfully,
+  including exact package installation, native CLANGARM64 compilation, tests,
+  installation, and architecture validation.
 - The native-host gate correctly rejects an AMD64 host.
 - Synthetic Arm64 payloads pass and AMD64 payloads fail.
 - All locked MSYS2 CLANGARM64 package versions were checked against current
@@ -79,10 +84,11 @@ forks, with every finding fixed or explicitly dispositioned.
 
 **Native-result placeholder - update after the Arm64 run**
 
-The code and CI paths are PR-ready. Native build, import, render, installer,
-MSIX, install, launch, and hardware evidence remain pending until the checked-in
-Arm64 handoff prompt is executed on a native Windows 11 Arm64 machine. Official
-signing and publication remain maintainer-owned.
+The code and CI paths are PR-ready, and the first dependency layer now has a
+successful hosted native Arm64 build. Full-chain libopenshot/OpenShot import,
+render, installer, MSIX, install, launch, and hardware evidence remain pending
+until the checked-in Arm64 handoff prompt is executed on a native Windows 11
+Arm64 machine. Official signing and publication remain maintainer-owned.
 
 **Definition of done**
 

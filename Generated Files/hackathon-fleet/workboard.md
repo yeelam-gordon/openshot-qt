@@ -79,3 +79,18 @@
 - **PR readiness:** `libopenshot-audio`, `libopenshot`, and `openshot-qt` each contain a self-contained, additive, reviewed diff ready as three separate PRs in dependency order. GitHub-hosted Arm64 presubmits are enabled for the dependency repos; production GitLab/signing/hardware validation remains maintainer-owned.
 - **Demo readiness:** ready as an honest plan/evidence demo; a native-success demo remains impossible until the external infrastructure blockers above are resolved.
 - **Remaining external gates:** post-4.0 baseline selection (G0), signed dependency/toolchain lock (G1), a registered native `windows-arm64`/`code-sign-arm64` GitLab runner, reachable `gitlab.openshot.org` access, signing credentials, two physical Arm64 devices, and execution of the now-implemented G0-G13 runbook against real artifacts.
+
+## Fork, PR, and automated-review handoff
+
+- Forks: `yeelam-gordon/libopenshot-audio`, `yeelam-gordon/libopenshot`,
+  `yeelam-gordon/openshot-qt`.
+- Upstream PRs: OpenShot/libopenshot-audio#171,
+  OpenShot/libopenshot#1089, and OpenShot/openshot-qt#6094.
+- Mirror PRs in the forks ran the `copilot-pr-autopilot` workflow to
+  convergence. All three current heads have `Converged: true` and zero open
+  threads; exact SHAs are recorded in `Generated Files/pr-review-status.md`.
+- Hosted Windows Arm64 audio run `33169651801`, attempt 2, passed the complete
+  CLANGARM64 build/install/validation job.
+- Fork-only branch `hackathon/windows-arm64-demo` contains the implementation,
+  evidence, submission draft, Arm64 machine prompt, and Slidecast source
+  package. It intentionally remains separate from the upstream application PR.
