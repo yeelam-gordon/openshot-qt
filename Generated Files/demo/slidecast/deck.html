@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenShot Native Windows Arm64</title>
+<link rel="stylesheet" href="styles/presets.css">
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/MotionPathPlugin.min.js"></script>
+<script src="vendor/SplitText.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#08111f;color:#f7fbff;font-family:Inter,Segoe UI,sans-serif}
+.bg{position:fixed;inset:0;background:radial-gradient(circle at 85% 10%,#214f7a 0,transparent 38%),linear-gradient(145deg,#07101d,#0c1b2e 65%,#102b45)}
+#sc-stage{position:relative;width:100vw;height:100vh}
+.slide{position:absolute;inset:0;padding:10vh 8vw 13vh;display:flex;flex-direction:column;justify-content:center}
+.eyebrow{color:#55c7ff;font-size:20px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin-bottom:22px}
+h1{font-size:78px;line-height:1.02;letter-spacing:-.04em;max-width:1100px}
+h2{font-size:56px;line-height:1.06;letter-spacing:-.03em;max-width:1200px}
+.lead{font-size:28px;line-height:1.45;color:#b7c8d8;max-width:1050px;margin-top:28px}
+.accent{color:#55c7ff}.good{color:#6ee7a8}.warn{color:#ffca64}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:38px}
+.card{padding:28px;border:1px solid #31506b;border-radius:18px;background:rgba(14,33,53,.86);box-shadow:0 20px 55px rgba(0,0,0,.25)}
+.card .num{font-size:42px;font-weight:800;color:#55c7ff}.card h3{font-size:25px;margin:9px 0}.card p{font-size:19px;line-height:1.45;color:#b7c8d8}
+.flow{display:flex;align-items:center;gap:18px;margin-top:42px}
+.node{padding:24px 28px;border-radius:16px;background:#102c46;border:1px solid #39739c;font-size:23px;font-weight:700;text-align:center;min-width:245px}
+.arrow{font-size:40px;color:#55c7ff}
+.oracle{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px}
+.tuple{padding:34px;border-radius:18px;background:#0e253c;border:1px solid #32638a}
+.tuple code{display:block;font:700 31px/1.4 Consolas,monospace;color:#6ee7a8;margin-bottom:14px}
+.tuple p{font-size:20px;color:#b7c8d8;line-height:1.45}
+.checks{list-style:none;margin-top:34px;display:grid;gap:15px}
+.checks li{font-size:24px;color:#d9e8f5}.checks li::before{content:"✓";color:#6ee7a8;font-weight:800;margin-right:14px}
+.result{font-size:62px;font-weight:850;letter-spacing:-.03em;margin-top:18px}
+.source{position:fixed;top:30px;right:45px;color:#7892a9;font-size:14px;z-index:20}
+#sc-progress{position:fixed;top:0;left:0;height:4px;width:0;background:#55c7ff;z-index:30}
+#sc-counter{position:fixed;top:30px;left:42px;color:#7892a9;font-size:16px;z-index:30}
+#sc-subtitle{position:fixed;left:50%;bottom:5vh;transform:translateX(-50%);z-index:40;width:82vw;text-align:center;font-size:24px;line-height:1.35;background:rgba(2,8,15,.82);padding:12px 18px;border-radius:10px}
+#sc-subtitle:empty{display:none}
+body.subtitles-off #sc-subtitle{display:none}
+</style>
+</head>
+<body class="theme-devDark">
+<div class="bg"></div>
+<div id="sc-progress"></div><div id="sc-counter">1 / 6</div><div class="source">OpenShot #5853 · Windows Arm64</div><div id="sc-subtitle"></div>
+<div id="sc-stage">
+  <section class="slide" data-slide="s1">
+    <div class="eyebrow" id="s1-eye">Microsoft Global Hackathon 2026</div>
+    <h1 id="s1-title">OpenShot, <span class="accent">native</span> on Windows Arm64.</h1>
+    <p class="lead" id="s1-lead">A three-repository release path with no x64 emulation and no architecture guesswork.</p>
+  </section>
+  <section class="slide" data-slide="s2">
+    <div class="eyebrow">The gap</div><h2 id="s2-title">One app. Three native layers. Zero Arm64 release artifacts.</h2>
+    <div class="flow" id="s2-flow"><div class="node">libopenshot-audio</div><div class="arrow">→</div><div class="node">libopenshot + Python</div><div class="arrow">→</div><div class="node">openshot-qt packages</div></div>
+    <p class="lead" id="s2-lead">Issue #5853 asks for a Windows Arm64 release. Existing production lanes serve x64 and x86.</p>
+  </section>
+  <section class="slide" data-slide="s3">
+    <div class="eyebrow">What changed</div><h2 id="s3-title">Three focused pull requests, one architecture contract.</h2>
+    <div class="grid" id="s3-cards">
+      <div class="card"><div class="num">PR A</div><h3>Audio</h3><p>CLANGARM64 build lane and payload validation.</p></div>
+      <div class="card"><div class="num">PR B</div><h3>Library</h3><p>Qt6, SWIG binding, native tests, exact producer artifact.</p></div>
+      <div class="card"><div class="num">PR C</div><h3>Application</h3><p>Freeze, Inno, MSIX, signing, and post-freeze scans.</p></div>
+    </div>
+  </section>
+  <section class="slide" data-slide="s4">
+    <div class="eyebrow">Fail-closed proof</div><h2 id="s4-title">Native host and native payload are proven separately.</h2>
+    <div class="oracle" id="s4-oracle">
+      <div class="tuple"><code>(UNKNOWN, ARM64)</code><p><strong>IsWow64Process2</strong>: native process, native Arm64 host. Any nonzero process machine means WOW or emulation.</p></div>
+      <div class="tuple"><code>PE Machine = 0xAA64</code><p>Every EXE, DLL, and PYD is recursively scanned. One foreign payload fails the lane.</p></div>
+    </div>
+  </section>
+  <section class="slide" data-slide="s5">
+    <div class="eyebrow">Arm64 machine result</div><h2 id="s5-title">Replace this slide with captured native evidence.</h2>
+    <ul class="checks" id="s5-checks">
+      <li>Native build: PENDING</li><li>Import and Qt startup: PENDING</li><li>Render and package: PENDING</li><li>Install and launch: PENDING</li>
+    </ul>
+    <p class="lead warn" id="s5-note">The Arm64 handoff prompt updates these statements only from command output and captured artifacts.</p>
+  </section>
+  <section class="slide" data-slide="s6">
+    <div class="eyebrow">Outcome</div><div class="result" id="s6-result">PR-ready today.<br><span class="accent">Release-ready after native evidence.</span></div>
+    <p class="lead" id="s6-lead">Upstream publication and signing remain maintainer-owned. The build, validation, and demo path is reproducible.</p>
+  </section>
+</div>
+<script src="animations/anim.js"></script>
+<script>
+window.__slidecastRenderMode=new URLSearchParams(location.search).has('render');
+sc.init({autoMs:6500,subtitles:true});
+sc.slide('s1'); sc.cue('s1-title'); sc.entrance('#s1-eye',{preset:'rise'}); sc.entrance('#s1-title',{preset:'rise',duration:.9}); sc.cue('s1-lead'); sc.entrance('#s1-lead',{preset:'rise'});
+sc.slide('s2'); sc.cue('s2-title'); sc.entrance('#s2-title',{preset:'rise'}); sc.cue('s2-flow'); sc.entrance('#s2-flow .node, #s2-flow .arrow',{preset:'left',stagger:.12}); sc.cue('s2-lead'); sc.entrance('#s2-lead',{preset:'rise'});
+sc.slide('s3'); sc.cue('s3-title'); sc.entrance('#s3-title',{preset:'rise'}); sc.cue('s3-cards'); sc.entrance('#s3-cards .card',{preset:'rise',stagger:.15});
+sc.slide('s4'); sc.cue('s4-title'); sc.entrance('#s4-title',{preset:'rise'}); sc.cue('s4-oracle'); sc.entrance('#s4-oracle .tuple',{preset:'zoom',stagger:.18});
+sc.slide('s5'); sc.cue('s5-title'); sc.entrance('#s5-title',{preset:'rise'}); sc.cue('s5-checks'); sc.entrance('#s5-checks li',{preset:'left',stagger:.12}); sc.cue('s5-note'); sc.entrance('#s5-note',{preset:'rise'});
+sc.slide('s6'); sc.cue('s6-result'); sc.entrance('#s6-result',{preset:'rise',duration:.9}); sc.cue('s6-lead'); sc.entrance('#s6-lead',{preset:'rise'});
+sc.ready();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+{
+  "meta": {
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "deck": "deck.html",
+    "tts": {
+      "engine": "edge-tts",
+      "voice": "en-US-AriaNeural",
+      "rate": "-4%",
+      "pitch": "+0Hz"
+    },
+    "subtitles": {
+      "mode": "burn",
+      "fontName": "Arial",
+      "fontSize": 16,
+      "marginV": 45
+    },
+    "backgroundMusic": null
+  },
+  "slides": [
+    {
+      "id": "s1",
+      "leadInMs": 350,
+      "tailMs": 1100,
+      "steps": [
+        {
+          "id": "s1-1",
+          "script": "OpenShot is a popular open-source video editor, but Windows on Arm users still have no native release. We built [[cue]] a complete Arm64 path without relying on x64 emulation.",
+          "cue": {"type": "seek", "toLabel": "s1-title"}
+        },
+        {
+          "id": "s1-2",
+          "script": "The goal is [[cue]] simple: native code, native dependencies, and evidence that fails closed.",
+          "cue": {"type": "seek", "toLabel": "s1-lead"}
+        }
+      ],
+      "embeddedVideo": null
+    },
+    {
+      "id": "s2",
+      "leadInMs": 300,
+      "tailMs": 1100,
+      "steps": [
+        {
+          "id": "s2-1",
+          "script": "The challenge crosses [[cue]] three repositories, not one application switch.",
+          "cue": {"type": "seek", "toLabel": "s2-title"}
+        },
+        {
+          "id": "s2-2",
+          "script": "OpenShotAudio feeds [[cue]] libopenshot and its Python binding, which then feeds the frozen application, Inno installer, and MSIX package.",
+          "cue": {"type": "seek", "toLabel": "s2-flow"}
+        },
+        {
+          "id": "s2-3",
+          "script": "Upstream issue five eight five three records the [[cue]] missing Windows Arm64 release.",
+          "cue": {"type": "seek", "toLabel": "s2-lead"}
+        }
+      ],
+      "embeddedVideo": null
+    },
+    {
+      "id": "s3",
+      "leadInMs": 300,
+      "tailMs": 1200,
+      "steps": [
+        {
+          "id": "s3-1",
+          "script": "The implementation is split into [[cue]] three reviewable pull requests.",
+          "cue": {"type": "seek", "toLabel": "s3-title"}
+        },
+        {
+          "id": "s3-2",
+          "script": "The audio library builds first. The core library consumes that exact artifact. The application then freezes and packages the complete native stack. [[cue]] Existing x64 and x86 paths remain unchanged.",
+          "cue": {"type": "seek", "toLabel": "s3-cards"}
+        }
+      ],
+      "embeddedVideo": null
+    },
+    {
+      "id": "s4",
+      "leadInMs": 300,
+      "tailMs": 1200,
+      "steps": [
+        {
+          "id": "s4-1",
+          "script": "Architecture proof is [[cue]] deliberately split into host and payload evidence.",
+          "cue": {"type": "seek", "toLabel": "s4-title"}
+        },
+        {
+          "id": "s4-2",
+          "script": "For a native process, Is Wow sixty-four Process Two reports [[cue]] unknown process machine and Arm64 native machine. Separately, every executable, DLL, and Python extension must report P E machine A A six four.",
+          "cue": {"type": "seek", "toLabel": "s4-oracle"}
+        }
+      ],
+      "embeddedVideo": null
+    },
+    {
+      "id": "s5",
+      "leadInMs": 300,
+      "tailMs": 1400,
+      "steps": [
+        {
+          "id": "s5-1",
+          "script": "This slide is reserved for [[cue]] evidence captured on the Windows Arm64 machine.",
+          "cue": {"type": "seek", "toLabel": "s5-title"}
+        },
+        {
+          "id": "s5-2",
+          "script": "The handoff workflow records the native build, import, Qt startup, deterministic render, package architecture, install, and launch. [[cue]] Replace pending only when each command passes.",
+          "cue": {"type": "seek", "toLabel": "s5-checks"}
+        },
+        {
+          "id": "s5-3",
+          "script": "If a gate fails, [[cue]] show the failure honestly instead of manufacturing a success claim.",
+          "cue": {"type": "seek", "toLabel": "s5-note"}
+        }
+      ],
+      "embeddedVideo": null
+    },
+    {
+      "id": "s6",
+      "leadInMs": 300,
+      "tailMs": 1400,
+      "steps": [
+        {
+          "id": "s6-1",
+          "script": "The result is [[cue]] three upstream-ready changes and a reproducible validation path.",
+          "cue": {"type": "seek", "toLabel": "s6-result"}
+        },
+        {
+          "id": "s6-2",
+          "script": "Official signing and publication remain with the maintainers. [[cue]] Native evidence from this machine closes the hackathon delivery.",
+          "cue": {"type": "seek", "toLabel": "s6-lead"}
+        }
+      ],
+      "embeddedVideo": null
+    }
+  ]
+}

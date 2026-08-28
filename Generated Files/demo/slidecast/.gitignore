@@ -1,0 +1,4 @@
+build/
+assets/*.mp4
+assets/*.mov
+assets/*.mkv
