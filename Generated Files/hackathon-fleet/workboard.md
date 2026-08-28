@@ -91,6 +91,12 @@
   threads; exact SHAs are recorded in `Generated Files/pr-review-status.md`.
 - Hosted Windows Arm64 audio run `33169651801`, attempt 2, passed the complete
   CLANGARM64 build/install/validation job.
+- Hosted Windows Arm64 library runs compile the complete library and all test
+  targets; latest measured result is 512/516 tests passing. Four residual
+  FFmpeg 9/ImageMagick 7 runtime tests are explicit follow-up gates.
+- The library review loop hit the round-cap circuit breaker and was handed off
+  with zero open review threads rather than expanding into unrelated
+  dependency-runtime redesign.
 - Fork-only branch `hackathon/windows-arm64-demo` contains the implementation,
   evidence, submission draft, Arm64 machine prompt, and Slidecast source
   package. It intentionally remains separate from the upstream application PR.

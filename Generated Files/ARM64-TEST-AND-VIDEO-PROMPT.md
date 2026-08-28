@@ -105,6 +105,10 @@ to local directories. At minimum:
 
 2. Build/install `libopenshot` against that exact audio install with
    `USE_QT6=ON`; build and run Catch2 tests; validate every installed PE.
+   Current hosted evidence compiles successfully and passes 512/516 tests.
+   Preserve raw logs for the four known dependency-runtime failures:
+   `SphericalMetadata` (2) and `ImageWriter` (2). Re-test them, but do not
+   weaken or silently skip them.
 3. Copy the exact libopenshot Python/DLL artifacts into OpenShot's
    `build\install-arm64`, run the targeted Python tests, freeze the application,
    and validate the complete frozen directory.

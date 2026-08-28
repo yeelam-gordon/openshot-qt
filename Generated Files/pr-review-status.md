@@ -5,10 +5,13 @@ Verified 2026-08-28.
 | Layer | Upstream PR | Reviewed head | Mirror review | Convergence |
 | --- | --- | --- | --- | --- |
 | libopenshot-audio | https://github.com/OpenShot/libopenshot-audio/pull/171 | `d572b7fdd9b25dad705336a4424ac814ae725971` | https://github.com/yeelam-gordon/libopenshot-audio/pull/1 | `true`; 0 open threads |
-| libopenshot | https://github.com/OpenShot/libopenshot/pull/1089 | `a26673e530c669cd75c7f6d37e420c464ceb312c` | https://github.com/yeelam-gordon/libopenshot/pull/1 | `true`; 0 open threads |
+| libopenshot | https://github.com/OpenShot/libopenshot/pull/1089 | `29e8bedfbdb600792b114676bb42681b35876adc` | https://github.com/yeelam-gordon/libopenshot/pull/1 | round-cap hand-off; 0 open threads |
 | openshot-qt | https://github.com/OpenShot/openshot-qt/pull/6094 | `ea204fac7bc48450f471567fb9cf1f379ad25768` | https://github.com/yeelam-gordon/openshot-qt/pull/1 | `true`; 0 open threads |
 
-The upstream PR heads exactly match these reviewed SHAs.
+The upstream PR heads match these SHAs. Audio and application reached scripted
+Copilot convergence. Library review reached the round-cap circuit breaker
+after resolving all open threads and proving the native build; further
+dependency-runtime work was explicitly handed off rather than expanding scope.
 
 ## Native CI evidence
 
@@ -21,6 +24,15 @@ The upstream PR heads exactly match these reviewed SHAs.
 - The initial attempt exposed the missing optional ASIO SDK include. The fix
   defines and exports `JUCE_ASIO=0` when `ASIO::SDK` is unavailable, retaining
   WASAPI support without claiming ASIO support.
+
+- Library hosted Arm64 workflows compiled the full libopenshot library,
+  Python binding, OpenCV 5 code, FFmpeg 9 code, examples, and 516 test targets.
+- Latest measured CTest result: **512/516 pass**.
+- Residual failures are isolated to:
+  - two FFmpeg 9 spherical metadata round-trip tests;
+  - two ImageMagick 7 ImageWriter process crashes.
+- These are recorded as focused dependency-runtime follow-ups, not hidden or
+  disabled.
 
 ## Remaining machine validation
 

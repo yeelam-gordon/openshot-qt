@@ -3,6 +3,11 @@
 Event: Microsoft Global Hackathon 2026  
 Form: default submission type, form `00013`, version 13  
 Submission URL: https://innovation-studio.microsoft.com/events/hackathon2026/submissions/projects
+Project ID: `proj-75760c7a-dc47-4be0-b965-68d71886d65e`
+Created project: https://innovation-studio.microsoft.com/events/hackathon2026/submissions/projects/proj-75760c7a-dc47-4be0-b965-68d71886d65e
+Current status: Saved; this folder shares the canonical OpenShot project.
+
+> **Duplicate prevention:** Do not create another project from this demo copy.
 
 Copy each answer into the matching live form field. Update the native-results
 paragraph and video only after running
@@ -16,16 +21,29 @@ OpenShot Native Windows on Arm64
 
 ### Tagline *(required, text, max 160, field `fixed-tagline`)*
 
-Bring OpenShot's complete Python, Qt, C++, audio, render, installer, and MSIX stack to native Windows Arm64 without x64 emulation.
+Bring native Windows Arm64 to OpenShot, a 6K-star video editor with 35M+ GitHub binary downloads and nearly 1M downloads for its latest release.
 
 ### Description *(optional, markdown, field `fixed-description`)*
 
 ```markdown
-**Problem**
+**Why this matters**
 
-OpenShot has no native Windows Arm64 release. Windows-on-Arm users must run the
-x64 application through emulation even though the application spans a
-performance-sensitive media stack. Upstream issue
+OpenShot is a widely distributed open-source video editor with **6,213 GitHub
+stars**, **765 forks**, and **35,262,334 recorded downloads of primary GitHub
+release binaries** across 28 releases as of August 28, 2026.
+
+Release 3.5.1 alone recorded **968,902 primary binary downloads**. Its Windows
+x64 and x86 installers account for **783,304 downloads**, yet OpenShot ships no
+native Windows Arm64 release. Copilot+ PC and other Windows-on-Arm users must
+run a performance-sensitive Python, Qt, C++, audio, and rendering stack through
+emulation.
+
+Downloads are not unique users, but 35M+ recorded binaries and nearly one
+million downloads for one release show the scale of the platform gap. OpenShot
+supports Linux, macOS, and Windows; native Windows Arm64 is the missing
+architecture, not a niche new product.
+
+Upstream issue
 [OpenShot/openshot-qt#5853](https://github.com/OpenShot/openshot-qt/issues/5853)
 tracks the request.
 
@@ -70,11 +88,17 @@ forks, with every finding fixed or explicitly dispositioned.
 **Evidence today**
 
 - Shared validator unit tests pass independently in all three repositories.
-- Copilot review converged with zero open threads on all three current PR
-  heads; upstream PR heads match the reviewed SHAs.
+- Audio and application Copilot review converged with zero open threads.
+  Library review resolved every open thread and stopped at the round-cap
+  circuit breaker after native CI compiled the complete library and passed
+  512 of 516 tests.
 - The GitHub-hosted Windows Arm64 audio presubmit completed successfully,
   including exact package installation, native CLANGARM64 compilation, tests,
   installation, and architecture validation.
+- The hosted Windows Arm64 library presubmit compiles the complete dependency,
+  C++ library, Python binding, FFmpeg 9/OpenCV 5 compatibility code, and all
+  516 test executables; 512 tests pass. The four remaining dependency-runtime
+  failures are explicitly documented.
 - The native-host gate correctly rejects an AMD64 host.
 - Synthetic Arm64 payloads pass and AMD64 payloads fail.
 - All locked MSYS2 CLANGARM64 package versions were checked against current
@@ -84,11 +108,12 @@ forks, with every finding fixed or explicitly dispositioned.
 
 **Native-result placeholder - update after the Arm64 run**
 
-The code and CI paths are PR-ready, and the first dependency layer now has a
-successful hosted native Arm64 build. Full-chain libopenshot/OpenShot import,
-render, installer, MSIX, install, launch, and hardware evidence remain pending
-until the checked-in Arm64 handoff prompt is executed on a native Windows 11
-Arm64 machine. Official signing and publication remain maintainer-owned.
+The code and CI paths are PR-ready. The audio layer has a fully successful
+hosted native Arm64 run, and the library layer compiles completely with
+512/516 tests passing. OpenShot import, render, installer, MSIX, install,
+launch, and hardware evidence remain pending until the checked-in Arm64
+handoff prompt is executed on a native Windows 11 Arm64 machine. Official
+signing and publication remain maintainer-owned.
 
 **Definition of done**
 
@@ -97,6 +122,14 @@ recursive PE checks, launches OpenShot, completes the deterministic render,
 produces an Arm64 package, and records the evidence in the final narrated demo.
 Official upstream merge or signed publication is not required for the
 hackathon deliverable.
+
+**Evidence snapshot (August 28, 2026)**
+
+- GitHub repository API: 6,213 stars and 765 forks.
+- GitHub Releases API: 35,262,334 downloads of primary binaries across 28
+  releases, excluding signatures, checksums, metadata, and source archives.
+- Release 3.5.1: Windows x64 EXE 730,835; Windows x86 EXE 52,469; x86_64
+  AppImage 116,147; macOS x64 DMG 69,451; no Windows Arm64 asset.
 ```
 
 ### Keywords *(optional, tags, field `default-keywords`)*
@@ -124,9 +157,10 @@ Use the final output produced on the Arm64 machine:
 
 `Generated Files\demo\slidecast\build\final.mp4`
 
-The checked-in source deck already renders as a 2:14 narrated draft. Before
-upload, run the Arm64 handoff prompt so slide 5 and the embedded application
-clip contain real native evidence instead of `PENDING`.
+The checked-in source deck renders as a 2:14 narrated draft. The live form
+allows at most 2:00, so shorten it to 120 seconds or less before upload. Run the
+Arm64 handoff prompt so slide 5 and the embedded application clip contain real
+native evidence instead of `PENDING`.
 
 ## Step 2 - Additional information
 
@@ -144,7 +178,7 @@ C++, Python, Qt6, CMake, MSYS2, CLANGARM64, FFmpeg, GitHub Actions, GitLab CI, I
 
 ### Problem or opportunity statement *(required, text, field `custom-1783618909399-eestbp`)*
 
-OpenShot has no native Windows Arm64 release, so Copilot+ PC and other Windows-on-Arm users run a performance-sensitive video editor through x64 emulation. The gap crosses three repositories and the full Python, Qt, C++, audio, rendering, installer, and MSIX dependency chain. This project adds fail-closed native Arm64 build and packaging paths while preserving existing x64/x86 releases.
+OpenShot has 35M+ GitHub binary downloads; v3.5.1 alone has 783K Windows downloads, all x64/x86. Copilot+ PC users still run its video stack through emulation.
 
 ### Writing Code *(required, select, field `custom-1783618919359-iurwr8`)*
 
