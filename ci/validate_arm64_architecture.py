@@ -40,6 +40,7 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import subprocess
 import struct
 import sys
@@ -203,10 +204,20 @@ def verify_package_lock(path):
             failures.append("Malformed package lock entry: %s" % entry)
             continue
         package, remainder = entry.split("=", 1)
-        expected_version = remainder.split(",", 1)[0]
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9@._+:-]*", package):
+            failures.append("Invalid package name in lock: %r" % package)
+            continue
+        expected_version, expected_sha256 = (
+            value.strip() for value in remainder.split(",", 1)
+        )
+        if expected_sha256 != "UNVERIFIED-NO-SIGNED-SNAPSHOT":
+            failures.append(
+                "Package archive hash verification is not implemented for %s: %s"
+                % (package, expected_sha256)
+            )
         try:
             completed = subprocess.run(
-                ["pacman", "-Q", package],
+                ["pacman", "-Q", "--", package],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -217,9 +228,20 @@ def verify_package_lock(path):
         if completed.returncode != 0:
             failures.append("Package not installed: %s" % package)
             continue
-        fields = completed.stdout.strip().split()
-        actual_version = fields[-1] if len(fields) >= 2 else ""
-        verified.append({"package": package, "version": actual_version})
+        lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+        fields = lines[0].split() if lines else []
+        if len(fields) != 2 or fields[0] != package:
+            failures.append(
+                "Unexpected pacman output for %s: %r" % (package, completed.stdout)
+            )
+            continue
+        actual_version = fields[1]
+        verified.append({
+            "package": package,
+            "version": actual_version,
+            "expected_version": expected_version,
+            "expected_sha256": expected_sha256,
+        })
         if actual_version != expected_version:
             failures.append(
                 "Wrong package version for %s: %s (expected %s)"

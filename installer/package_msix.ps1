@@ -166,27 +166,26 @@ function Set-TemplateProcessorArchitecture {
         [string] $ProcessorArchitecture
     )
 
-    [xml] $templateXml = Get-Content -Path $TemplatePath -Raw
-    $architectureAttributes = @(
-        foreach ($node in $templateXml.SelectNodes('//*')) {
-            foreach ($attribute in $node.Attributes) {
-                if ($attribute.LocalName -eq "ProcessorArchitecture") {
-                    $attribute
-                }
-            }
-        }
-    )
-
-    if ($architectureAttributes.Count -eq 0) {
+    $templateText = Get-Content -Path $TemplatePath -Raw
+    $pattern = "(?i)(ProcessorArchitecture\s*=\s*)([""'])([^""']*)(\2)"
+    if (-not [regex]::IsMatch($templateText, $pattern)) {
         throw "Generated MSIX template does not expose a ProcessorArchitecture attribute"
     }
 
-    foreach ($attribute in $architectureAttributes) {
-        $attribute.Value = $ProcessorArchitecture
-    }
+    $updatedText = [regex]::Replace(
+        $templateText,
+        $pattern,
+        {
+            param($match)
+            $match.Groups[1].Value +
+                $match.Groups[2].Value +
+                $ProcessorArchitecture +
+                $match.Groups[2].Value
+        }
+    )
 
     if ($PSCmdlet.ShouldProcess($TemplatePath, "Set ProcessorArchitecture=$ProcessorArchitecture")) {
-        $templateXml.Save($TemplatePath)
+        Set-Content -Path $TemplatePath -Value $updatedText -Encoding UTF8
     }
 }
 

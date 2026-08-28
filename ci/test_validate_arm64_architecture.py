@@ -58,7 +58,7 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
 
     def test_package_lock_detects_version_drift(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
-            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
             lock_path = lock.name
         try:
             completed = mock.Mock(returncode=0, stdout="example-package 1.2.4\n")
@@ -71,7 +71,7 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
 
     def test_package_lock_reports_missing_pacman(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
-            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
             lock_path = lock.name
         try:
             with mock.patch.object(
@@ -93,6 +93,57 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
             self.assertEqual(failures, ["Malformed package lock entry: malformed-entry"])
         finally:
             os.unlink(lock_path)
+
+    def test_package_lock_rejects_unsafe_package_name(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("-unsafe=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
+            lock_path = lock.name
+        try:
+            verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified, [])
+            self.assertEqual(failures, ["Invalid package name in lock: '-unsafe'"])
+        finally:
+            os.unlink(lock_path)
+
+    def test_package_lock_rejects_unexpected_pacman_output(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
+            lock_path = lock.name
+        try:
+            completed = mock.Mock(returncode=0, stdout="warning only\n")
+            with mock.patch.object(validator.subprocess, "run", return_value=completed):
+                verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified, [])
+            self.assertIn("Unexpected pacman output", failures[0])
+        finally:
+            os.unlink(lock_path)
+
+    def test_package_lock_rejects_unverified_real_hash(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("example-package=1.2.3,abc123\n")
+            lock_path = lock.name
+        try:
+            completed = mock.Mock(returncode=0, stdout="example-package 1.2.3\n")
+            with mock.patch.object(validator.subprocess, "run", return_value=completed):
+                _verified, failures = validator.verify_package_lock(lock_path)
+            self.assertIn("hash verification is not implemented", failures[0])
+        finally:
+            os.unlink(lock_path)
+
+    def test_require_payload_rejects_missing_root(self):
+        with mock.patch.object(sys, "argv", ["validator", "--require-payload"]):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(validator.main(), 1)
+
+    def test_require_payload_rejects_directory_without_valid_pe(self):
+        with tempfile.TemporaryDirectory() as root:
+            with open(os.path.join(root, "stub.exe"), "w", encoding="utf-8") as stream:
+                stream.write("not a PE")
+            with mock.patch.object(
+                sys, "argv", ["validator", "--payload-root", root, "--require-payload"]
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(validator.main(), 1)
 
 
 if __name__ == "__main__":
