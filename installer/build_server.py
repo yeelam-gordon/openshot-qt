@@ -62,10 +62,6 @@ github_user = None
 github_pass = None
 github_release = None
 windows_32bit = False
-# Canonical Windows architecture enum: "x64", "x86", or "arm64".
-# windows_32bit is retained for backward compatibility and is always kept
-# in sync with windows_arch == "x86".
-windows_arch = "x64"
 version_info = {}
 windows_mode = "full"
 
@@ -603,6 +599,8 @@ def sign_windows_msix_artifacts(signed_installer_path):
 
 
 def main():
+    windows_arch = "x64"
+    windows_32bit = False
     # Only run this code when directly executing this script. Parts of this file
     # are also used in the deploy.py script.
     try:
@@ -657,18 +655,20 @@ def main():
                 "x86": "install-x86",
                 "arm64": "install-arm64",
             }[windows_arch]
-            artifact_names = [
-                preferred_artifact,
-                *[name for name in artifact_names if name != preferred_artifact],
-            ]
-        artifact_path = next(
-            (
-                os.path.join(PATH, "build", artifact_name)
-                for artifact_name in artifact_names
-                if os.path.exists(os.path.join(PATH, "build", artifact_name))
-            ),
-            "",
-        )
+            artifact_path = os.path.join(PATH, "build", preferred_artifact)
+            if not os.path.isdir(artifact_path):
+                raise FileNotFoundError(
+                    "Required %s artifact directory not found: %s"
+                    % (windows_arch, artifact_path))
+        else:
+            artifact_path = next(
+                (
+                    os.path.join(PATH, "build", artifact_name)
+                    for artifact_name in artifact_names
+                    if os.path.exists(os.path.join(PATH, "build", artifact_name))
+                ),
+                "",
+            )
 
         # Parse artifact version files (if found)
         for repo_name in ["libopenshot-audio", "libopenshot", "openshot-qt"]:
