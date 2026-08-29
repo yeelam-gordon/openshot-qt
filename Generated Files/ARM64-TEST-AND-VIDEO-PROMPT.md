@@ -11,9 +11,9 @@ OpenShot launch, and renders the pre-authored Slidecast package under
 ```powershell
 New-Item -ItemType Directory -Force C:\src\openshot-arm64 | Out-Null
 Set-Location C:\src\openshot-arm64
-git clone -b feature/windows-arm64-native https://github.com/yeelam-gordon/libopenshot-audio.git
-git clone -b feature/windows-arm64-native https://github.com/yeelam-gordon/libopenshot.git
-git clone -b hackathon/windows-arm64-demo https://github.com/yeelam-gordon/openshot-qt.git OpenShot
+git clone --depth 1 --single-branch -b feature/windows-arm64-native https://github.com/yeelam-gordon/libopenshot-audio.git
+git clone --depth 1 --single-branch -b feature/windows-arm64-native https://github.com/yeelam-gordon/libopenshot.git
+git clone --depth 1 --single-branch -b hackathon/windows-arm64-demo https://github.com/yeelam-gordon/openshot-qt.git OpenShot
 ```
 
 For later refreshes:
