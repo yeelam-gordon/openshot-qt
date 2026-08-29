@@ -4,6 +4,9 @@
   "projectId": "proj-75760c7a-dc47-4be0-b965-68d71886d65e",
   "projectUrl": "https://innovation-studio.microsoft.com/events/hackathon2026/submissions/projects/proj-75760c7a-dc47-4be0-b965-68d71886d65e",
   "submissionSource": "hackathon-submission.md",
+  "coverImage": "hackathon-cover.png",
+  "coverUploaded": true,
+  "coverUploadVerifiedAt": "2026-08-29T00:05:23Z",
   "canonicalFolder": "..\\..\\OpenShot\\Generated Files",
   "creationPolicy": "This demo folder shares the canonical OpenShot project. Do not create a duplicate."
 }
