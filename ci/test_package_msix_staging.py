@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 import json
-import os
 import shutil
 import subprocess
 import unittest
@@ -20,6 +19,8 @@ TEMPLATE_PATH = FIXTURE_DIR / "OpenShot_template.xml"
 REPORT_PATH = MSIX_DIR / "prepare-report.json"
 WORKING_TEMPLATE_PATH = MSIX_DIR / "OpenShot_template.generated.xml"
 STAGED_INSTALLER_PATH = MSIX_DIR / "installer-source" / INSTALLER_PATH.name
+VERSION_FILE = BUILD_DIR / "install-arm64" / "share" / "openshot-qt.env"
+INSTALL_ARM64_DIR = BUILD_DIR / "install-arm64"
 
 
 def remove_path(path):
@@ -42,6 +43,7 @@ OWNED_PATHS = (
     MSIX_DIR / "old-package.msix",
     MSIX_DIR / "msix-packaging-tool.log",
     FIXTURE_DIR,
+    VERSION_FILE,
 )
 
 
@@ -52,10 +54,20 @@ class PackageMsixStagingTests(unittest.TestCase):
 
         FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
         MSIX_DIR.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.write_text("VERSION:4.0.0\n", encoding="utf-8")
 
     def tearDown(self):
         for path in OWNED_PATHS:
             remove_path(path)
+        # VERSION_FILE lives under build/install-arm64/share/. That directory
+        # can also hold a real, non-test installed payload (from `cmake
+        # --install`), so never rmtree it wholesale -- only remove the
+        # now-empty directories this suite itself created.
+        if VERSION_FILE.parent.exists() and not any(VERSION_FILE.parent.iterdir()):
+            VERSION_FILE.parent.rmdir()
+        if INSTALL_ARM64_DIR.exists() and not any(INSTALL_ARM64_DIR.iterdir()):
+            INSTALL_ARM64_DIR.rmdir()
         if MSIX_DIR.exists() and not any(MSIX_DIR.iterdir()):
             MSIX_DIR.rmdir()
         if BUILD_DIR.exists() and not any(BUILD_DIR.iterdir()):
@@ -66,14 +78,13 @@ class PackageMsixStagingTests(unittest.TestCase):
         TEMPLATE_PATH.write_text(
             "\n".join(
                 [
-                    "<MsixPackagingTemplate>",
-                    '  <InstallerConfig InstallerPath="C:\\OpenShot-MSIX\\source\\OpenShot-original-arm64.exe" />',
-                    "  <SilentArgs>/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-</SilentArgs>",
-                    '  <Identity Publisher="CN=Original Publisher" ProcessorArchitecture="x64" />',
-                    "  <Properties>",
-                    "    <PublisherDisplayName>Original Publisher</PublisherDisplayName>",
-                    "  </Properties>",
-                    "</MsixPackagingTemplate>",
+                    "<MsixPackagingToolTemplate>",
+                    '  <SaveLocation PackagePath="C:\\OpenShot-MSIX\\OpenShot.msix" TemplatePath="C:\\OpenShot-MSIX\\OpenShot-template.xml" />',
+                    '  <Installer Path="C:\\OpenShot-MSIX\\source\\OpenShot-original-arm64.exe" Arguments="/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" InstallLocation="C:\\Program Files\\OpenShot Video Editor" />',
+                    '  <PackageInformation PackageName="Old.Name" PublisherName="CN=Old Publisher" PublisherDisplayName="Old Publisher" Version="1.0.0.0">',
+                    "    <Applications />",
+                    "  </PackageInformation>",
+                    "</MsixPackagingToolTemplate>",
                 ]
             ),
             encoding="utf-8",
@@ -91,10 +102,6 @@ class PackageMsixStagingTests(unittest.TestCase):
         stale_source_dir.mkdir(parents=True, exist_ok=True)
         (stale_source_dir / "stale.txt").write_text("stale", encoding="utf-8")
         (stale_source_dir / INSTALLER_PATH.name).write_bytes(b"old-installer")
-
-        env = os.environ.copy()
-        env["WINDOWS_MSIX_PUBLISHER"] = 'CN="Test Publisher", O="Test Publisher"'
-        env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"] = "Test Publisher"
 
         completed = subprocess.run(
             [
@@ -115,7 +122,6 @@ class PackageMsixStagingTests(unittest.TestCase):
                 str(REPORT_PATH),
             ],
             cwd=str(REPO_ROOT),
-            env=env,
             capture_output=True,
             text=True,
             check=False,
@@ -144,37 +150,34 @@ class PackageMsixStagingTests(unittest.TestCase):
         self.assertEqual(report["source_installer_path"], str(STAGED_INSTALLER_PATH))
         self.assertEqual(report["working_template_path"], str(WORKING_TEMPLATE_PATH))
         self.assertEqual(report["processor_architecture"], "arm64")
-        self.assertEqual(report["publisher"], env["WINDOWS_MSIX_PUBLISHER"])
-        self.assertEqual(
-            report["publisher_display_name"],
-            env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"],
-        )
+        self.assertEqual(report["publisher"], "CN=5FE34B8B-A62B-4594-911F-0D6CFC87D00F")
+        self.assertEqual(report["publisher_display_name"], "OpenShot Studios")
 
         self.assertTrue(WORKING_TEMPLATE_PATH.exists())
         working_template = WORKING_TEMPLATE_PATH.read_text(encoding="utf-8")
         self.assertNotEqual(working_template, "stale-template")
         self.assertIn(str(STAGED_INSTALLER_PATH), working_template)
         self.assertNotIn(r"C:\OpenShot-MSIX\source\OpenShot-original-arm64.exe", working_template)
-        self.assertIn('ProcessorArchitecture="arm64"', working_template)
         template_xml = ElementTree.fromstring(working_template)
+        package_info = template_xml.find(".//PackageInformation")
+        self.assertEqual(package_info.attrib["Version"], "4.0.0.0")
+        self.assertEqual(package_info.attrib["PackageName"], "OpenShotStudios.OpenShotforWindows")
         self.assertEqual(
-            template_xml.find(".//Identity").attrib["Publisher"],
-            env["WINDOWS_MSIX_PUBLISHER"],
+            package_info.attrib["PublisherName"],
+            "CN=5FE34B8B-A62B-4594-911F-0D6CFC87D00F",
         )
-        self.assertEqual(
-            template_xml.find(".//Properties/PublisherDisplayName").text,
-            env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"],
-        )
+        self.assertEqual(package_info.attrib["PublisherDisplayName"], "OpenShot Studios")
 
     def test_teardown_preserves_unrelated_preexisting_build_msix_output(self):
         """Regression for OSQT-MSIX-TEARDOWN-001.
 
         tearDown() must remove only the exact paths this suite owns
-        (OWNED_PATHS) and must never recursively delete build/msix wholesale,
-        because a real (non-test) packaging run can leave genuine artifacts
-        there. This proves a sentinel file that setUp/tearDown do not own
-        survives a full tearDown() pass, while owned fixture paths are still
-        cleaned up.
+        (OWNED_PATHS, plus VERSION_FILE's now-empty parent directories) and
+        must never recursively delete build/msix or build/install-arm64
+        wholesale, because a real (non-test) packaging/install run can leave
+        genuine artifacts in either directory. This proves sentinel files
+        that setUp/tearDown do not own survive a full tearDown() pass, while
+        owned fixture paths are still cleaned up.
         """
         sentinel_path = MSIX_DIR / "sentinel-real-packaging-output.msix"
         sentinel_path.write_bytes(b"real-signed-msix-package-not-owned-by-tests")
@@ -187,6 +190,10 @@ class PackageMsixStagingTests(unittest.TestCase):
         owned_source_dir.mkdir(parents=True, exist_ok=True)
         (owned_source_dir / "owned.txt").write_text("owned", encoding="utf-8")
         REPORT_PATH.write_text('{"owned": true}', encoding="utf-8")
+
+        install_sentinel = INSTALL_ARM64_DIR / "bin" / "openshot-qt.exe"
+        install_sentinel.parent.mkdir(parents=True, exist_ok=True)
+        install_sentinel.write_bytes(b"real-installed-arm64-binary-not-owned-by-tests")
 
         try:
             self.tearDown()
@@ -202,11 +209,22 @@ class PackageMsixStagingTests(unittest.TestCase):
             self.assertTrue(unrelated_subdir.exists())
             self.assertTrue((unrelated_subdir / "notes.txt").exists())
 
+            self.assertTrue(
+                install_sentinel.exists(),
+                "tearDown must not delete unrelated pre-existing build/install-arm64 output",
+            )
+            self.assertEqual(
+                install_sentinel.read_bytes(),
+                b"real-installed-arm64-binary-not-owned-by-tests",
+            )
+
             self.assertFalse(owned_source_dir.exists())
             self.assertFalse(REPORT_PATH.exists())
+            self.assertFalse(VERSION_FILE.exists())
         finally:
             remove_path(sentinel_path)
             remove_path(unrelated_subdir)
+            remove_path(INSTALL_ARM64_DIR)
             # Restore MSIX_DIR so the outer, real tearDown() (invoked again by
             # the test runner after this method returns) has a directory to
             # operate on, matching the fixture state other tests expect.
