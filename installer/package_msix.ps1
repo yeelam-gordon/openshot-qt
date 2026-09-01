@@ -339,7 +339,7 @@ else {
     Assert-SingleArtifact -Artifacts $installerMatches -Description "build\$InstallerFilter installer"
     $InstallerPath = $installerMatches[0].FullName
 }
-Write-Information "Using Inno installer: $installerPath"
+Write-Information "Using Inno installer: $InstallerPath"
 
 if (-not $PrepareOnly) {
     $toolPackage = Get-AppxPackage Microsoft.MSIXPackagingTool
