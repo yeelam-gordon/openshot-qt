@@ -191,9 +191,20 @@ class PackageMsixStagingTests(unittest.TestCase):
         (owned_source_dir / "owned.txt").write_text("owned", encoding="utf-8")
         REPORT_PATH.write_text('{"owned": true}', encoding="utf-8")
 
-        install_sentinel = INSTALL_ARM64_DIR / "bin" / "openshot-qt.exe"
+        # Use a test-unique filename (never the real production binary name)
+        # so this fixture cannot collide with, and overwrite, a genuine
+        # installed openshot-qt.exe.
+        install_sentinel = (
+            INSTALL_ARM64_DIR / "bin" / "unrelated-real-preexisting-payload.bin"
+        )
         install_sentinel.parent.mkdir(parents=True, exist_ok=True)
         install_sentinel.write_bytes(b"real-installed-arm64-binary-not-owned-by-tests")
+
+        real_payload = (
+            INSTALL_ARM64_DIR / "lib" / "unrelated-real-preexisting-lib-fixture.bin"
+        )
+        real_payload.parent.mkdir(parents=True, exist_ok=True)
+        real_payload.write_bytes(b"real-preexisting-lib-payload-not-owned-by-tests")
 
         try:
             self.tearDown()
@@ -217,14 +228,32 @@ class PackageMsixStagingTests(unittest.TestCase):
                 install_sentinel.read_bytes(),
                 b"real-installed-arm64-binary-not-owned-by-tests",
             )
+            self.assertTrue(
+                real_payload.exists(),
+                "tearDown must not delete unrelated pre-existing build/install-arm64 payload",
+            )
+            self.assertEqual(
+                real_payload.read_bytes(),
+                b"real-preexisting-lib-payload-not-owned-by-tests",
+            )
 
             self.assertFalse(owned_source_dir.exists())
             self.assertFalse(REPORT_PATH.exists())
             self.assertFalse(VERSION_FILE.exists())
         finally:
+            # Remove only the exact fixture paths this test itself created;
+            # never recursively delete INSTALL_ARM64_DIR, which may still
+            # hold the unrelated real payload this test just proved survives.
             remove_path(sentinel_path)
             remove_path(unrelated_subdir)
-            remove_path(INSTALL_ARM64_DIR)
+            remove_path(install_sentinel)
+            if install_sentinel.parent.exists() and not any(install_sentinel.parent.iterdir()):
+                install_sentinel.parent.rmdir()
+            remove_path(real_payload)
+            if real_payload.parent.exists() and not any(real_payload.parent.iterdir()):
+                real_payload.parent.rmdir()
+            if INSTALL_ARM64_DIR.exists() and not any(INSTALL_ARM64_DIR.iterdir()):
+                INSTALL_ARM64_DIR.rmdir()
             # Restore MSIX_DIR so the outer, real tearDown() (invoked again by
             # the test runner after this method returns) has a directory to
             # operate on, matching the fixture state other tests expect.
