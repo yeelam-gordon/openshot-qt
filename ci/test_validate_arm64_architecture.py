@@ -30,6 +30,11 @@ def write_pe(path, machine):
 
 
 class Arm64ArchitectureValidatorTests(unittest.TestCase):
+    def test_package_lock_reports_missing_file(self):
+        verified, failures = validator.verify_package_lock("missing-package-lock.txt")
+        self.assertEqual(verified, [])
+        self.assertIn("Unable to read package lock", failures[0])
+
     def test_payload_scan_accepts_arm64_and_rejects_amd64(self):
         with tempfile.TemporaryDirectory() as root:
             write_pe(os.path.join(root, "native.dll"), validator.IMAGE_FILE_MACHINE_ARM64)

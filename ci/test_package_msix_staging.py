@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 import json
-import os
 import shutil
 import subprocess
 import unittest
@@ -20,6 +19,7 @@ TEMPLATE_PATH = FIXTURE_DIR / "OpenShot_template.xml"
 REPORT_PATH = MSIX_DIR / "prepare-report.json"
 WORKING_TEMPLATE_PATH = MSIX_DIR / "OpenShot_template.generated.xml"
 STAGED_INSTALLER_PATH = MSIX_DIR / "installer-source" / INSTALLER_PATH.name
+VERSION_FILE = BUILD_DIR / "install-arm64" / "share" / "openshot-qt.env"
 
 
 def remove_path(path):
@@ -40,10 +40,13 @@ class PackageMsixStagingTests(unittest.TestCase):
 
         FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
         MSIX_DIR.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.write_text("VERSION:4.0.0\n", encoding="utf-8")
 
     def tearDown(self):
         remove_path(FIXTURE_DIR)
         remove_path(MSIX_DIR)
+        remove_path(BUILD_DIR / "install-arm64")
         if BUILD_DIR.exists() and not any(BUILD_DIR.iterdir()):
             BUILD_DIR.rmdir()
 
@@ -52,14 +55,13 @@ class PackageMsixStagingTests(unittest.TestCase):
         TEMPLATE_PATH.write_text(
             "\n".join(
                 [
-                    "<MsixPackagingTemplate>",
-                    '  <InstallerConfig InstallerPath="C:\\OpenShot-MSIX\\source\\OpenShot-original-arm64.exe" />',
-                    "  <SilentArgs>/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-</SilentArgs>",
-                    '  <Identity Publisher="CN=Original Publisher" ProcessorArchitecture="x64" />',
-                    "  <Properties>",
-                    "    <PublisherDisplayName>Original Publisher</PublisherDisplayName>",
-                    "  </Properties>",
-                    "</MsixPackagingTemplate>",
+                    "<MsixPackagingToolTemplate>",
+                    '  <SaveLocation PackagePath="C:\\OpenShot-MSIX\\OpenShot.msix" TemplatePath="C:\\OpenShot-MSIX\\OpenShot-template.xml" />',
+                    '  <Installer Path="C:\\OpenShot-MSIX\\source\\OpenShot-original-arm64.exe" Arguments="/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" InstallLocation="C:\\Program Files\\OpenShot Video Editor" />',
+                    '  <PackageInformation PackageName="Old.Name" PublisherName="CN=Old Publisher" PublisherDisplayName="Old Publisher" Version="1.0.0.0">',
+                    "    <Applications />",
+                    "  </PackageInformation>",
+                    "</MsixPackagingToolTemplate>",
                 ]
             ),
             encoding="utf-8",
@@ -77,10 +79,6 @@ class PackageMsixStagingTests(unittest.TestCase):
         stale_source_dir.mkdir(parents=True, exist_ok=True)
         (stale_source_dir / "stale.txt").write_text("stale", encoding="utf-8")
         (stale_source_dir / INSTALLER_PATH.name).write_bytes(b"old-installer")
-
-        env = os.environ.copy()
-        env["WINDOWS_MSIX_PUBLISHER"] = 'CN="Test Publisher", O="Test Publisher"'
-        env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"] = "Test Publisher"
 
         completed = subprocess.run(
             [
@@ -101,7 +99,6 @@ class PackageMsixStagingTests(unittest.TestCase):
                 str(REPORT_PATH),
             ],
             cwd=str(REPO_ROOT),
-            env=env,
             capture_output=True,
             text=True,
             check=False,
@@ -130,27 +127,23 @@ class PackageMsixStagingTests(unittest.TestCase):
         self.assertEqual(report["source_installer_path"], str(STAGED_INSTALLER_PATH))
         self.assertEqual(report["working_template_path"], str(WORKING_TEMPLATE_PATH))
         self.assertEqual(report["processor_architecture"], "arm64")
-        self.assertEqual(report["publisher"], env["WINDOWS_MSIX_PUBLISHER"])
-        self.assertEqual(
-            report["publisher_display_name"],
-            env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"],
-        )
+        self.assertEqual(report["publisher"], "CN=5FE34B8B-A62B-4594-911F-0D6CFC87D00F")
+        self.assertEqual(report["publisher_display_name"], "OpenShot Studios")
 
         self.assertTrue(WORKING_TEMPLATE_PATH.exists())
         working_template = WORKING_TEMPLATE_PATH.read_text(encoding="utf-8")
         self.assertNotEqual(working_template, "stale-template")
         self.assertIn(str(STAGED_INSTALLER_PATH), working_template)
         self.assertNotIn(r"C:\OpenShot-MSIX\source\OpenShot-original-arm64.exe", working_template)
-        self.assertIn('ProcessorArchitecture="arm64"', working_template)
         template_xml = ElementTree.fromstring(working_template)
+        package_info = template_xml.find(".//PackageInformation")
+        self.assertEqual(package_info.attrib["Version"], "4.0.0.0")
+        self.assertEqual(package_info.attrib["PackageName"], "OpenShotStudios.OpenShotforWindows")
         self.assertEqual(
-            template_xml.find(".//Identity").attrib["Publisher"],
-            env["WINDOWS_MSIX_PUBLISHER"],
+            package_info.attrib["PublisherName"],
+            "CN=5FE34B8B-A62B-4594-911F-0D6CFC87D00F",
         )
-        self.assertEqual(
-            template_xml.find(".//Properties/PublisherDisplayName").text,
-            env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"],
-        )
+        self.assertEqual(package_info.attrib["PublisherDisplayName"], "OpenShot Studios")
 
 
 if __name__ == "__main__":
