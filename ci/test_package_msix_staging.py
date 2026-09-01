@@ -29,21 +29,35 @@ def remove_path(path):
         path.unlink()
 
 
+# Exact set of paths this suite creates/manages. setUp and tearDown must only
+# ever touch these paths so that unrelated, pre-existing files under
+# build/msix (for example real packaging outputs dropped there by a prior,
+# non-test packaging run) are never destroyed. Do not recursively wipe
+# MSIX_DIR itself: only remove it afterwards if it happens to be empty.
+OWNED_PATHS = (
+    REPORT_PATH,
+    WORKING_TEMPLATE_PATH,
+    STAGED_INSTALLER_PATH,
+    MSIX_DIR / "installer-source",
+    MSIX_DIR / "old-package.msix",
+    MSIX_DIR / "msix-packaging-tool.log",
+    FIXTURE_DIR,
+)
+
+
 class PackageMsixStagingTests(unittest.TestCase):
     def setUp(self):
-        for path in (REPORT_PATH, WORKING_TEMPLATE_PATH, STAGED_INSTALLER_PATH):
+        for path in OWNED_PATHS:
             remove_path(path)
-        remove_path(MSIX_DIR / "installer-source")
-        remove_path(FIXTURE_DIR)
-        remove_path(MSIX_DIR / "old-package.msix")
-        remove_path(MSIX_DIR / "msix-packaging-tool.log")
 
         FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
         MSIX_DIR.mkdir(parents=True, exist_ok=True)
 
     def tearDown(self):
-        remove_path(FIXTURE_DIR)
-        remove_path(MSIX_DIR)
+        for path in OWNED_PATHS:
+            remove_path(path)
+        if MSIX_DIR.exists() and not any(MSIX_DIR.iterdir()):
+            MSIX_DIR.rmdir()
         if BUILD_DIR.exists() and not any(BUILD_DIR.iterdir()):
             BUILD_DIR.rmdir()
 
@@ -151,6 +165,52 @@ class PackageMsixStagingTests(unittest.TestCase):
             template_xml.find(".//Properties/PublisherDisplayName").text,
             env["WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME"],
         )
+
+    def test_teardown_preserves_unrelated_preexisting_build_msix_output(self):
+        """Regression for OSQT-MSIX-TEARDOWN-001.
+
+        tearDown() must remove only the exact paths this suite owns
+        (OWNED_PATHS) and must never recursively delete build/msix wholesale,
+        because a real (non-test) packaging run can leave genuine artifacts
+        there. This proves a sentinel file that setUp/tearDown do not own
+        survives a full tearDown() pass, while owned fixture paths are still
+        cleaned up.
+        """
+        sentinel_path = MSIX_DIR / "sentinel-real-packaging-output.msix"
+        sentinel_path.write_bytes(b"real-signed-msix-package-not-owned-by-tests")
+
+        unrelated_subdir = MSIX_DIR / "unrelated-real-output"
+        unrelated_subdir.mkdir(parents=True, exist_ok=True)
+        (unrelated_subdir / "notes.txt").write_text("not owned by tests", encoding="utf-8")
+
+        owned_source_dir = MSIX_DIR / "installer-source"
+        owned_source_dir.mkdir(parents=True, exist_ok=True)
+        (owned_source_dir / "owned.txt").write_text("owned", encoding="utf-8")
+        REPORT_PATH.write_text('{"owned": true}', encoding="utf-8")
+
+        try:
+            self.tearDown()
+
+            self.assertTrue(
+                sentinel_path.exists(),
+                "tearDown must not delete unrelated pre-existing build/msix output",
+            )
+            self.assertEqual(
+                sentinel_path.read_bytes(),
+                b"real-signed-msix-package-not-owned-by-tests",
+            )
+            self.assertTrue(unrelated_subdir.exists())
+            self.assertTrue((unrelated_subdir / "notes.txt").exists())
+
+            self.assertFalse(owned_source_dir.exists())
+            self.assertFalse(REPORT_PATH.exists())
+        finally:
+            remove_path(sentinel_path)
+            remove_path(unrelated_subdir)
+            # Restore MSIX_DIR so the outer, real tearDown() (invoked again by
+            # the test runner after this method returns) has a directory to
+            # operate on, matching the fixture state other tests expect.
+            MSIX_DIR.mkdir(parents=True, exist_ok=True)
 
 
 if __name__ == "__main__":
