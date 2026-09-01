@@ -193,12 +193,15 @@ def scan_payload_architecture(root):
 def verify_package_lock(path):
     failures = []
     verified = []
-    with open(path, encoding="utf-8") as stream:
-        entries = [
-            line.strip()
-            for line in stream
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
+    try:
+        with open(path, encoding="utf-8") as stream:
+            entries = [
+                line.strip()
+                for line in stream
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+    except OSError as exc:
+        return verified, ["Unable to read package lock %s: %s" % (path, exc)]
     for entry in entries:
         if "=" not in entry or "," not in entry.split("=", 1)[1]:
             failures.append("Malformed package lock entry: %s" % entry)
