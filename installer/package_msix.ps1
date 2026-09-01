@@ -4,7 +4,26 @@ param(
     # preserves existing behavior), x86, or arm64.
     [Parameter(Mandatory = $false)]
     [ValidateSet("x86_64", "x86", "arm64")]
-    [string] $Architecture = "x86_64"
+    [string] $Architecture = "x86_64",
+
+    # Optional explicit installer path. If omitted, the script preserves the
+    # historical behavior of discovering exactly one matching installer under
+    # build\.
+    [Parameter(Mandatory = $false)]
+    [string] $InstallerPath,
+
+    # Optional template override for non-production validation.
+    [Parameter(Mandatory = $false)]
+    [string] $TemplatePath = "C:\OpenShot-MSIX\OpenShotTemplate\OpenShot_template.xml",
+
+    # Prepare the repo-local staging/template workspace without invoking the
+    # MSIX Packaging Tool or requiring admin/service state.
+    [Parameter(Mandatory = $false)]
+    [switch] $PrepareOnly,
+
+    # Optional machine-readable report for preparation-only validation.
+    [Parameter(Mandatory = $false)]
+    [string] $PreparationReportPath
 )
 
 Set-StrictMode -Version Latest
@@ -312,17 +331,140 @@ function Resolve-MsixPackagingTool {
     throw "MSIX Packaging Tool CLI not found. Checked package-root path, app execution alias, manifest AppID Msix.App, and package executable search. Package executables found: $($allPackageExes -join ', ')"
 }
 
+function New-MsixPackagingWorkspace {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $InstallerPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $TemplatePath,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x86_64", "x86", "arm64")]
+        [string] $Architecture,
+
+        [Parameter(Mandatory = $false)]
+        [switch] $ResetPackagingOutputs
+    )
+
+    $outputDir = Join-Path $PWD "build\msix"
+    New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
+    $toolLogPath = Join-Path $outputDir "msix-packaging-tool.log"
+    if ($ResetPackagingOutputs) {
+        Remove-Item -Path (Join-Path $outputDir "*.msix") -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $toolLogPath -Force -ErrorAction SilentlyContinue
+    }
+
+    $templateText = Get-Content -Path $TemplatePath -Raw
+    foreach ($arg in @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-")) {
+        if ($templateText -notmatch [regex]::Escape($arg)) {
+            throw "MSIX template is missing required Inno silent argument: $arg"
+        }
+    }
+
+    $expectedInstallerPath = Get-TemplateInstallerPath -TemplatePath $TemplatePath
+    Write-Information "MSIX template expects installer: $expectedInstallerPath"
+
+    $sourceInstallerDir = Join-Path $outputDir "installer-source"
+    Remove-Item -Path $sourceInstallerDir -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -Path $sourceInstallerDir -ItemType Directory -Force | Out-Null
+    $sourceInstallerPath = Join-Path $sourceInstallerDir ([System.IO.Path]::GetFileName($InstallerPath))
+    Copy-Item -Path $InstallerPath -Destination $sourceInstallerPath -Force
+    Write-Information "Staged MSIX source installer: $sourceInstallerPath"
+
+    $workingTemplatePath = Join-Path $outputDir "OpenShot_template.generated.xml"
+    Remove-Item -Path $workingTemplatePath -Force -ErrorAction SilentlyContinue
+    $workingTemplateText = $templateText.Replace($expectedInstallerPath, $sourceInstallerPath)
+    if ($workingTemplateText -eq $templateText) {
+        throw "Unable to update MSIX template installer path from '$expectedInstallerPath' to '$sourceInstallerPath'"
+    }
+    Set-Content -Path $workingTemplatePath -Value $workingTemplateText -Encoding UTF8
+    Assert-TemplateInstallerPath -TemplatePath $workingTemplatePath -ExpectedInstallerPath $sourceInstallerPath
+    $processorArchitecture = @{
+        "x86_64" = "x64"
+        "x86" = "x86"
+        "arm64" = "arm64"
+    }[$Architecture]
+    Set-TemplateProcessorArchitecture `
+        -TemplatePath $workingTemplatePath `
+        -ProcessorArchitecture $processorArchitecture
+    Write-Information "Generated MSIX template processor architecture: $processorArchitecture"
+    $msixPublisher = $env:WINDOWS_MSIX_PUBLISHER
+    if (-not $msixPublisher) {
+        $msixPublisher = 'CN="OpenShot Studios, LLC", O="OpenShot Studios, LLC", STREET="2931 Ridge Rd #101", L=Rockwall, S=Texas, C=US, PostalCode=75032'
+    }
+    $templatePublisherUpdated = Set-TemplatePublisher -TemplatePath $workingTemplatePath -Publisher $msixPublisher
+    if ($templatePublisherUpdated) {
+        Write-Information "Generated MSIX template publisher: $msixPublisher"
+    }
+    $publisherDisplayName = $env:WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME
+    if (-not $publisherDisplayName) {
+        $publisherDisplayName = "OpenShot Studios"
+    }
+    $templatePublisherDisplayNameUpdated = Set-TemplateElementText `
+        -TemplatePath $workingTemplatePath `
+        -ElementName "PublisherDisplayName" `
+        -Value $publisherDisplayName
+    if ($templatePublisherDisplayNameUpdated) {
+        Write-Information "Generated MSIX template publisher display name: $publisherDisplayName"
+    }
+    Write-Information "Generated MSIX template: $workingTemplatePath"
+
+    return [pscustomobject]@{
+        output_dir = $outputDir
+        tool_log_path = $toolLogPath
+        expected_installer_path = $expectedInstallerPath
+        source_installer_dir = $sourceInstallerDir
+        source_installer_path = $sourceInstallerPath
+        working_template_path = $workingTemplatePath
+        processor_architecture = $processorArchitecture
+        publisher = $msixPublisher
+        publisher_display_name = $publisherDisplayName
+    }
+}
+
+if ($InstallerPath) {
+    if (-not (Test-Path -Path $InstallerPath -PathType Leaf)) {
+        throw "Installer not found: $InstallerPath"
+    }
+    $InstallerPath = (Resolve-Path -Path $InstallerPath).Path
+} else {
+    $installerMatches = @(Get-ChildItem -Path "build" -Filter $InstallerFilter -File)
+    Assert-SingleArtifact -Artifacts $installerMatches -Description "build\$InstallerFilter installer"
+    $InstallerPath = $installerMatches[0].FullName
+}
+Write-Information "Using Inno installer: $InstallerPath"
+
+if (-not (Test-Path -Path $TemplatePath -PathType Leaf)) {
+    throw "MSIX template not found: $TemplatePath"
+}
+
+$workspace = New-MsixPackagingWorkspace `
+    -InstallerPath $InstallerPath `
+    -TemplatePath $TemplatePath `
+    -Architecture $Architecture `
+    -ResetPackagingOutputs:(-not $PrepareOnly)
+
+if ($PreparationReportPath) {
+    $reportDir = Split-Path -Path $PreparationReportPath -Parent
+    if ($reportDir) {
+        New-Item -Path $reportDir -ItemType Directory -Force | Out-Null
+    }
+    Remove-Item -Path $PreparationReportPath -Force -ErrorAction SilentlyContinue
+    $workspace | ConvertTo-Json -Depth 4 | Set-Content -Path $PreparationReportPath -Encoding UTF8
+}
+
+if ($PrepareOnly) {
+    Write-Information "MSIX preparation-only mode completed."
+    return
+}
+
 if (-not (Test-Administrator)) {
     throw "MSIX packaging requires an elevated/admin Windows runner."
 }
 
 Set-Service wuauserv -StartupType Manual
 Start-Service wuauserv
-
-$installerMatches = @(Get-ChildItem -Path "build" -Filter $InstallerFilter -File)
-Assert-SingleArtifact -Artifacts $installerMatches -Description "build\$InstallerFilter installer"
-$installerPath = $installerMatches[0].FullName
-Write-Information "Using Inno installer: $installerPath"
 
 $toolPackage = Get-AppxPackage Microsoft.MSIXPackagingTool
 if (-not $toolPackage) {
@@ -333,70 +475,10 @@ $ToolDir = $toolPackage.InstallLocation
 $ToolExe = Resolve-MsixPackagingTool -ToolPackage $toolPackage
 Write-Information "Using MSIX Packaging Tool: $ToolExe"
 
-$templatePath = "C:\OpenShot-MSIX\OpenShotTemplate\OpenShot_template.xml"
-if (-not (Test-Path -Path $templatePath -PathType Leaf)) {
-    throw "MSIX template not found: $templatePath"
-}
-
-$outputDir = Join-Path $PWD "build\msix"
-New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
-Remove-Item -Path (Join-Path $outputDir "*.msix") -Force -ErrorAction SilentlyContinue
-$toolLogPath = Join-Path $outputDir "msix-packaging-tool.log"
-Remove-Item -Path $toolLogPath -Force -ErrorAction SilentlyContinue
-
-$templateText = Get-Content -Path $templatePath -Raw
-foreach ($arg in @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-")) {
-    if ($templateText -notmatch [regex]::Escape($arg)) {
-        throw "MSIX template is missing required Inno silent argument: $arg"
-    }
-}
-
-$expectedInstallerPath = Get-TemplateInstallerPath -TemplatePath $templatePath
-Write-Information "MSIX template expects installer: $expectedInstallerPath"
-
-$sourceInstallerDir = Join-Path ([System.IO.Path]::GetTempPath()) "OpenShot-MSIX-InstallerSource"
-Remove-Item -Path $sourceInstallerDir -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -Path $sourceInstallerDir -ItemType Directory -Force | Out-Null
-$sourceInstallerPath = Join-Path $sourceInstallerDir ([System.IO.Path]::GetFileName($installerPath))
-Copy-Item -Path $installerPath -Destination $sourceInstallerPath -Force
-Write-Information "Staged MSIX source installer: $sourceInstallerPath"
-
-$workingTemplatePath = Join-Path $outputDir "OpenShot_template.generated.xml"
-$workingTemplateText = $templateText.Replace($expectedInstallerPath, $sourceInstallerPath)
-if ($workingTemplateText -eq $templateText) {
-    throw "Unable to update MSIX template installer path from '$expectedInstallerPath' to '$sourceInstallerPath'"
-}
-Set-Content -Path $workingTemplatePath -Value $workingTemplateText -Encoding UTF8
-Assert-TemplateInstallerPath -TemplatePath $workingTemplatePath -ExpectedInstallerPath $sourceInstallerPath
-$processorArchitecture = @{
-    "x86_64" = "x64"
-    "x86" = "x86"
-    "arm64" = "arm64"
-}[$Architecture]
-Set-TemplateProcessorArchitecture `
-    -TemplatePath $workingTemplatePath `
-    -ProcessorArchitecture $processorArchitecture
-Write-Information "Generated MSIX template processor architecture: $processorArchitecture"
-$msixPublisher = $env:WINDOWS_MSIX_PUBLISHER
-if (-not $msixPublisher) {
-    $msixPublisher = 'CN="OpenShot Studios, LLC", O="OpenShot Studios, LLC", STREET="2931 Ridge Rd #101", L=Rockwall, S=Texas, C=US, PostalCode=75032'
-}
-$templatePublisherUpdated = Set-TemplatePublisher -TemplatePath $workingTemplatePath -Publisher $msixPublisher
-if ($templatePublisherUpdated) {
-    Write-Information "Generated MSIX template publisher: $msixPublisher"
-}
-$publisherDisplayName = $env:WINDOWS_MSIX_PUBLISHER_DISPLAY_NAME
-if (-not $publisherDisplayName) {
-    $publisherDisplayName = "OpenShot Studios"
-}
-$templatePublisherDisplayNameUpdated = Set-TemplateElementText `
-    -TemplatePath $workingTemplatePath `
-    -ElementName "PublisherDisplayName" `
-    -Value $publisherDisplayName
-if ($templatePublisherDisplayNameUpdated) {
-    Write-Information "Generated MSIX template publisher display name: $publisherDisplayName"
-}
-Write-Information "Generated MSIX template: $workingTemplatePath"
+$toolLogPath = $workspace.tool_log_path
+$workingTemplatePath = $workspace.working_template_path
+$sourceInstallerPath = $workspace.source_installer_path
+$outputDir = $workspace.output_dir
 
 $startTime = Get-Date
 Write-Information "Running MSIX Packaging Tool. Full output will be saved to: $toolLogPath"
@@ -411,7 +493,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Information "MSIX Packaging Tool completed successfully."
 
 $searchRoots = @(
-    (Split-Path -Path $templatePath -Parent),
+    (Split-Path -Path $TemplatePath -Parent),
     "C:\OpenShot-MSIX",
     $PWD.Path
 ) | Select-Object -Unique
